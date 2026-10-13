@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab TAT Analyzer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --ink:#10241f;
+    --paper:#f6f4ee;
+    --panel:#ffffff;
+    --line:#d9d3c4;
+    --teal:#0f5e56;
+    --teal-deep:#0a3f3a;
+    --amber:#c17a2c;
+    --red:#a3402f;
+    --muted:#6b6459;
+    --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+    --sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  }
+  @font-face{
+    font-family:'IBM Plex Sans';
+    src: local('Segoe UI');
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.5;
+    padding:0 0 80px 0;
+  }
+  a{color:var(--teal);}
+
+  .masthead{
+    background:var(--teal-deep);
+    color:#eef4f2;
+    padding:34px 28px 28px;
+    border-bottom:6px solid var(--amber);
+  }
+  .masthead .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.16em;
+    text-transform:uppercase;
+    color:#9fd3c9;
+    margin-bottom:8px;
+  }
+  .masthead h1{
+    margin:0 0 6px;
+    font-size:clamp(24px,3.4vw,34px);
+    font-weight:600;
+    letter-spacing:-.01em;
+  }
+  .masthead p{
+    margin:0;
+    max-width:640px;
+    color:#cfe3de;
+    font-size:14.5px;
+  }
+
+  .wrap{
+    max-width:1080px;
+    margin:0 auto;
+    padding:0 28px;
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:2px;
+    margin-top:28px;
+  }
+  .panel-head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:12px;
+    padding:18px 22px 14px;
+    border-bottom:1px solid var(--line);
+  }
+  .panel-head h2{
+    margin:0;
+    font-size:16px;
+    font-weight:600;
+    display:flex;
+    align-items:center;
+    gap:9px;
+  }
+  .panel-head h2 .num{
+    font-family:var(--mono);
+    color:var(--amber);
+    font-size:13px;
+  }
+  .panel-body{padding:20px 22px 24px;}
+  .hint{color:var(--muted); font-size:13px;}
+
+  /* Upload */
+  #dropzone{
+    border:2px dashed var(--line);
+    border-radius:2px;
+    padding:34px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  #dropzone.drag{
+    border-color:var(--teal);
+    background:#eef6f4;
+  }
+  #dropzone .icon{font-size:26px; margin-bottom:6px;}
+  #dropzone .title{font-weight:600; font-size:14.5px;}
+  #dropzone .sub{color:var(--muted); font-size:12.5px; margin-top:4px;}
+  input[type=file]{display:none;}
+  #fileMeta{
+    margin-top:14px;
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--teal-deep);
+    display:none;
+  }
+  #fileMeta.show{display:block;}
+
+  .btn{
+    display:inline-block;
+    background:var(--teal);
+    color:#fff;
+    border:none;
+    font-family:var(--sans);
+    font-weight:600;
+    font-size:13px;
+    padding:9px 16px;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  .btn.secondary{
+    background:transparent;
+    color:var(--teal-deep);
+    border:1px solid var(--line);
+  }
+  .btn:disabled{opacity:.45; cursor:not-allowed;}
+
+  /* group pickers */
+  .picker-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:18px;
+  }
+  @media (max-width:640px){ .picker-grid{grid-template-columns:1fr;} }
+  .picker-col label.col-label{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--muted);
+    display:block;
+    margin-bottom:8px;
+  }
+  .test-list{
+    max-height:220px;
+    overflow-y:auto;
+    border:1px solid var(--line);
+    border-radius:2px;
+  }
+  .test-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:6px 10px;
+    font-size:13px;
+    border-bottom:1px solid #ede8dc;
+  }
+  .test-row:last-child{border-bottom:none;}
+  .test-row .cnt{
+    margin-left:auto;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--muted);
+  }
+  .group-a .test-row input:checked{accent-color:var(--teal);}
+  .group-b .test-row input:checked{accent-color:var(--amber);}
+  .search-box{
+    width:100%;
+    padding:7px 9px;
+    border:1px solid var(--line);
+    border-radius:2px;
+    font-size:13px;
+    font-family:var(--sans);
+    margin-bottom:8px;
+  }
+  .picker-actions{
+    margin-top:20px;
+    display:flex;
+    gap:10px;
+  }
+
+  /* results */
+  .result-block{margin-bottom:30px;}
+  .result-block:last-child{margin-bottom:0;}
+  .result-title{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-weight:600;
+    font-size:14.5px;
+    margin-bottom:2px;
+  }
+  .swatch{width:10px;height:10px;border-radius:2px;display:inline-block;}
+  .swatch.a{background:var(--teal);}
+  .swatch.b{background:var(--amber);}
+  .swatch.c{background:var(--red);}
+  .n-badge{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  table.stat-table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:10px;
+    font-size:13px;
+  }
+  table.stat-table caption{
+    text-align:left;
+    font-family:var(--mono);
+    font-size:11.5px;
+    letter-spacing:.04em;
+    color:var(--muted);
+    padding-bottom:6px;
+    text-transform:uppercase;
+  }
+  table.stat-table th, table.stat-table td{
+    padding:7px 10px;
+    text-align:right;
+    border-bottom:1px solid #ede8dc;
+    font-family:var(--mono);
+  }
+  table.stat-table th{
+    text-align:right;
+    color:var(--muted);
+    font-weight:600;
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    border-bottom:1px solid var(--line);
+  }
+  table.stat-table td:first-child, table.stat-table th:first-child{
+    text-align:left;
+    font-family:var(--sans);
+    font-weight:600;
+    color:var(--ink);
+  }
+  .two-col{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+  }
+  @media (max-width:640px){ .two-col{grid-template-columns:1fr;} }
+
+  .flag-list{list-style:none; margin:0; padding:0; font-size:13px;}
+  .flag-list li{
+    padding:7px 0;
+    border-bottom:1px solid #ede8dc;
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .flag-list li:last-child{border-bottom:none;}
+  .flag-list .v{font-family:var(--mono); color:var(--red); font-weight:600;}
+  .flag-list .v.ok{color:var(--teal);}
+
+  #emptyState{color:var(--muted); font-size:13.5px;}
+  #resultsWrap{display:none;}
+  #resultsWrap.show{display:block;}
+
+  .foot{
+    text-align:center;
+    color:var(--muted);
+    font-size:11.5px;
+    font-family:var(--mono);
+    margin-top:36px;
+  }
+
+  .export-row{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    margin-top:16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">One Health Medical Centre — Laboratory Operations</div>
+    <h1>Lab TAT Analyzer</h1>
+    <p>Drop in a monthly TAT export and get collection→resulting and collection→verification turnaround stats, automatically — overall, by chosen test group, and for patients who had both done.</p>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- Upload -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2><span class="num">01</span> Load report</h2>
+      <span class="hint">.csv export from the LIS TAT report</span>
+    </div>
+    <div class="panel-body">
+      <div id="dropzone">
+        <div class="icon">&#128203;</div>
+        <div class="title">Drop the TAT Report CSV here, or click to browse</div>
+        <div class="sub">Same layout as the "TAT REPORT" export — title row, date range, then the data table</div>
+        <input type="file" id="fileInput" accept=".csv">
+      </div>
+      <div id="fileMeta"></div>
+    </div>
+  </div>
+
+  <!-- Group picker -->
+  <div class="panel" id="pickerPanel" style="display:none;">
+    <div class="panel-head">
+      <h2><span class="num">02</span> Choose test groups to compare</h2>
+      <span class="hint" id="testCountHint"></span>
+    </div>
+    <div class="panel-body">
+      <div class="picker-grid">
+        <div class="picker-col group-a">
+          <label class="col-label">Group A</label>
+          <input type="text" class="search-box" id="searchA" placeholder="Filter tests…">
+          <div class="test-list" id="listA"></div>
+        </div>
+        <div class="picker-col group-b">
+          <label class="col-label">Group B</label>
+          <input type="text" class="search-box" id="searchB" placeholder="Filter tests…">
+          <div class="test-list" id="listB"></div>
+        </div>
+      </div>
+      <div class="picker-actions">
+        <button class="btn" id="runBtn">Calculate</button>
+        <button class="btn secondary" id="resetBtn">Reset selection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="resultsWrap">
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2><span class="num">03</span> Turnaround time results</h2>
+        <span class="hint">minutes → hours shown where useful</span>
+      </div>
+      <div class="panel-body" id="resultsBody">
+        <div id="emptyState">Select Group A / Group B above and click Calculate.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2><span class="num">04</span> Data quality flags</h2>
+        <span class="hint">worth a look before trusting the averages</span>
+      </div>
+      <div class="panel-body">
+        <ul class="flag-list" id="flagList"></ul>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2><span class="num">05</span> All domains — median TAT overview</h2>
+        <span class="hint">collection → resulting, by lab domain</span>
+      </div>
+      <div class="panel-body">
+        <table class="stat-table" id="domainTable"></table>
+        <div class="export-row">
+          <button class="btn secondary" id="exportBtn">Export summary as CSV</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="foot">LAB TAT ANALYZER — RUNS ENTIRELY IN YOUR BROWSER — NO DATA LEAVES THIS PAGE</div>
+
+<script>
+(function(){
+
+  // ---------- time parsing ----------
+  // Handles "H:MM", "-H:MM", "HHH:MM:SS" style Excel elapsed-time strings.
+  // Returns minutes (float) or null if blank / error / unparseable.
+  function parseTimeToMinutes(raw){
+    if (raw === null || raw === undefined) return null;
+    var v = String(raw).trim();
+    if (v === '' ) return null;
+    if (v.indexOf('#') === 0) return null; // #SPILL! etc
+    var neg = false;
+    if (v[0] === '-'){ neg = true; v = v.slice(1); }
+    var parts = v.split(':');
+    if (parts.length < 2 || parts.length > 3) return null;
+    var nums = parts.map(function(p){ return parseInt(p,10); });
+    if (nums.some(function(n){ return isNaN(n); })) return null;
+    var h,m,s;
+    if (nums.length === 2){ h=nums[0]; m=nums[1]; s=0; }
+    else { h=nums[0]; m=nums[1]; s=nums[2]; }
+    var total = h*60 + m + s/60;
+    return neg ? -total : total;
+  }
+
+  // ---------- stats ----------
+  function quantile(sortedArr, q){
+    if (sortedArr.length === 0) return null;
+    var pos = (sortedArr.length - 1) * q;
+    var base = Math.floor(pos);
+    var rest = pos - base;
+    if (sortedArr[base+1] !== undefined){
+      return sortedArr[base] + rest * (sortedArr[base+1] - sortedArr[base]);
+    } else {
+      return sortedArr[base];
+    }
+  }
+
+  function summarize(values){
+    var vals = values.filter(function(v){ return v !== null && v !== undefined && !isNaN(v); });
+    if (vals.length === 0){
+      return {n:0, median:null, p75:null, p90:null, mean:null, max:null, min:null};
+    }
+    var sorted = vals.slice().sort(function(a,b){ return a-b; });
+    var sum = sorted.reduce(function(a,b){ return a+b; }, 0);
+    return {
+      n: sorted.length,
+      median: quantile(sorted, 0.5),
+      p75: quantile(sorted, 0.75),
+      p90: quantile(sorted, 0.90),
+      mean: sum / sorted.length,
+      min: sorted[0],
+      max: sorted[sorted.length-1]
+    };
+  }
+
+  function fmtMin(m){
+    if (m === null || m === undefined || isNaN(m)) return '—';
+    return Math.round(m) + 'm';
+  }
+  function fmtHrs(m){
+    if (m === null || m === undefined || isNaN(m)) return '—';
+    return (m/60).toFixed(1) + 'h';
+  }
+
+  // ---------- column detection ----------
+  // We look for the header row (contains "Req num") rather than hardcoding
+  // a skip count, so slightly different exports still work.
+  function findHeaderRowIndex(rows){
+    for (var i=0;i<Math.min(rows.length,15);i++){
+      var row = rows[i];
+      if (row.some(function(cell){ return String(cell).trim().toLowerCase() === 'req num'; })){
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  var COL_TESTNAME_CANDIDATES = ['s/n','test','test name']; // report mislabels test-name column as S/N
+  var COL_REQNUM = 'req num';
+  var COL_DOMAIN = 'domain';
+  var COL_MACHINE = 'machine';
+  var COL_RESULTING = 'collection time - sample resulting';
+  var COL_VERIFICATION = 'collection time - verification';
+
+  function normalizeHeader(h){ return String(h).trim().toLowerCase(); }
+
+  function colIndex(headers, target){
+    var norm = headers.map(normalizeHeader);
+    var idx = norm.indexOf(target);
+    return idx;
+  }
+
+  // ---------- state ----------
+  var state = {
+    rows: [],           // array of parsed record objects
+    testNames: [],       // sorted unique list with counts
+    domains: {}
+  };
+
+  // ---------- CSV handling ----------
+  var dropzone = document.getElementById('dropzone');
+  var fileInput = document.getElementById('fileInput');
+  var fileMeta = document.getElementById('fileMeta');
+
+  dropzone.addEventListener('click', function(){ fileInput.click(); });
+  dropzone.addEventListener('dragover', function(e){ e.preventDefault(); dropzone.classList.add('drag'); });
+  dropzone.addEventListener('dragleave', function(){ dropzone.classList.remove('drag'); });
+  dropzone.addEventListener('drop', function(e){
+    e.preventDefault();
+    dropzone.classList.remove('drag');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', function(e){
+    if (e.target.files.length) handleFile(e.target.files[0]);
+  });
+
+  function handleFile(file){
+    fileMeta.className = 'show';
+    fileMeta.textContent = 'Reading ' + file.name + ' …';
+    Papa.parse(file, {
+      complete: function(results){
+        processRows(results.data, file.name);
+      },
+      error: function(err){
+        fileMeta.textContent = 'Could not read file: ' + err;
+      }
+    });
+  }
+
+  function processRows(rawRows, fileName){
+    var headerIdx = findHeaderRowIndex(rawRows);
+    if (headerIdx === -1){
+      fileMeta.textContent = 'Could not find a header row containing "Req num" — is this the TAT report export?';
+      return;
+    }
+    var headers = rawRows[headerIdx].map(function(h){ return String(h); });
+    var normHeaders = headers.map(normalizeHeader);
+
+    var idxTest = -1;
+    for (var i=0;i<COL_TESTNAME_CANDIDATES.length;i++){
+      var ix = normHeaders.indexOf(COL_TESTNAME_CANDIDATES[i]);
+      if (ix !== -1){ idxTest = ix; break; }
+    }
+    var idxReq = normHeaders.indexOf(COL_REQNUM);
+    var idxDomain = normHeaders.indexOf(COL_DOMAIN);
+    var idxMachine = normHeaders.indexOf(COL_MACHINE);
+    var idxResulting = normHeaders.indexOf(COL_RESULTING);
+    var idxVerification = normHeaders.indexOf(COL_VERIFICATION);
+
+    if (idxTest===-1 || idxReq===-1 || idxResulting===-1 || idxVerification===-1){
+      fileMeta.textContent = 'Header row found, but expected columns are missing. Check the export matches the standard TAT report layout.';
+      return;
+    }
+
+    var records = [];
+    var testCounts = {};
+    var domainCounts = {};
+    var errorCount = 0, negCount = 0, blankVerifCount = 0;
+
+    for (var r = headerIdx+1; r < rawRows.length; r++){
+      var row = rawRows[r];
+      if (!row || row.length === 0) continue;
+      var reqRaw = row[idxReq];
+      if (reqRaw === undefined || String(reqRaw).trim() === '') continue; // skip blank trailing rows
+      var testName = (row[idxTest] || '').toString().trim();
+      if (!testName) continue;
+
+      var resultRaw = row[idxResulting];
+      var verifRaw = row[idxVerification];
+
+      var resultMin = parseTimeToMinutes(resultRaw);
+      var verifMin = parseTimeToMinutes(verifRaw);
+
+      if (String(resultRaw||'').indexOf('#')===0 || String(verifRaw||'').indexOf('#')===0) errorCount++;
+      if ((resultMin!==null && resultMin<0) || (verifMin!==null && verifMin<0)) negCount++;
+      if (verifRaw === undefined || String(verifRaw).trim()==='') blankVerifCount++;
+
+      var rec = {
+        reqNum: String(reqRaw).trim(),
+        testName: testName,
+        domain: idxDomain!==-1 ? (row[idxDomain]||'').toString().trim() : '',
+        machine: idxMachine!==-1 ? (row[idxMachine]||'').toString().trim() : '',
+        resultingMin: resultMin,
+        verificationMin: verifMin
+      };
+      records.push(rec);
+
+      testCounts[testName] = (testCounts[testName]||0) + 1;
+      if (rec.domain) domainCounts[rec.domain] = (domainCounts[rec.domain]||0) + 1;
+    }
+
+    state.rows = records;
+    state.testCounts = testCounts;
+    state.domainCounts = domainCounts;
+    state.flags = { errorCount: errorCount, negCount: negCount, blankVerifCount: blankVerifCount, totalRows: records.length };
+
+    fileMeta.textContent = fileName + ' — ' + records.length + ' test rows, ' +
+      Object.keys(testCounts).length + ' distinct test types, ' +
+      new Set(records.map(function(r){return r.reqNum;})).size + ' unique requisitions.';
+
+    buildPickers();
+    document.getElementById('pickerPanel').style.display = 'block';
+    document.getElementById('resultsWrap').classList.remove('show');
+  }
+
+  // ---------- pickers ----------
+  var selectedA = new Set();
+  var selectedB = new Set();
+
+  function buildPickers(){
+    var names = Object.keys(state.testCounts).sort(function(a,b){
+      return state.testCounts[b]-state.testCounts[a];
+    });
+    state.testNames = names;
+
+    // sensible defaults: CBC-like -> group A, Malaria-like -> group B
+    selectedA = new Set(names.filter(function(n){ return /complete blood count|cbc/i.test(n); }));
+    selectedB = new Set(names.filter(function(n){ return /malaria/i.test(n); }));
+
+    renderList('listA', names, selectedA, 'a');
+    renderList('listB', names, selectedB, 'b');
+
+    document.getElementById('testCountHint').textContent = names.length + ' distinct test types found';
+  }
+
+  function renderList(containerId, names, selectedSet, tag){
+    var container = document.getElementById(containerId);
+    container.innerHTML = '';
+    names.forEach(function(name){
+      var row = document.createElement('label');
+      row.className = 'test-row';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = selectedSet.has(name);
+      cb.addEventListener('change', function(){
+        if (cb.checked) selectedSet.add(name); else selectedSet.delete(name);
+      });
+      var span = document.createElement('span');
+      span.textContent = name;
+      var cnt = document.createElement('span');
+      cnt.className = 'cnt';
+      cnt.textContent = state.testCounts[name];
+      row.appendChild(cb);
+      row.appendChild(span);
+      row.appendChild(cnt);
+      container.appendChild(row);
+    });
+  }
+
+  function filterList(containerId, names, selectedSet, query){
+    var filtered = names.filter(function(n){ return n.toLowerCase().indexOf(query.toLowerCase()) !== -1; });
+    renderList(containerId, filtered, selectedSet, containerId);
+  }
+
+  document.getElementById('searchA').addEventListener('input', function(e){
+    filterList('listA', state.testNames, selectedA, e.target.value);
+  });
+  document.getElementById('searchB').addEventListener('input', function(e){
+    filterList('listB', state.testNames, selectedB, e.target.value);
+  });
+  document.getElementById('resetBtn').addEventListener('click', function(){
+    selectedA = new Set();
+    selectedB = new Set();
+    renderList('listA', state.testNames, selectedA, 'a');
+    renderList('listB', state.testNames, selectedB, 'b');
+  });
+
+  document.getElementById('runBtn').addEventListener('click', runAnalysis);
+
+  // ---------- analysis ----------
+  function rowsForGroup(names){
+    var set = names;
+    return state.rows.filter(function(r){ return set.has(r.testName); });
+  }
+
+  function labelForGroup(names){
+    var arr = Array.from(names);
+    if (arr.length === 0) return '(none selected)';
+    if (arr.length <= 2) return arr.join(' + ');
+    return arr.length + ' test types';
+  }
+
+  function buildStatTable(rows, caption){
+    var resSummary = summarize(rows.map(function(r){ return r.resultingMin; }));
+    var verSummary = summarize(rows.map(function(r){ return r.verificationMin; }));
+
+    var html = '<table class="stat-table"><caption>' + caption + '</caption><thead><tr>' +
+      '<th>Metric</th><th>n</th><th>Median</th><th>P75</th><th>P90</th><th>Mean</th><th>Max</th>' +
+      '</tr></thead><tbody>';
+
+    function row(label, s){
+      html += '<tr><td>'+label+'</td>' +
+        '<td>'+ (s.n||0) +'</td>' +
+        '<td>'+ fmtMin(s.median) +' <span style="color:#9b9484">('+fmtHrs(s.median)+')</span></td>' +
+        '<td>'+ fmtMin(s.p75) +' <span style="color:#9b9484">('+fmtHrs(s.p75)+')</span></td>' +
+        '<td>'+ fmtMin(s.p90) +' <span style="color:#9b9484">('+fmtHrs(s.p90)+')</span></td>' +
+        '<td>'+ fmtMin(s.mean) +' <span style="color:#9b9484">('+fmtHrs(s.mean)+')</span></td>' +
+        '<td>'+ fmtHrs(s.max) +'</td>' +
+        '</tr>';
+    }
+    row('Collection → Resulting', resSummary);
+    row('Collection → Verification', verSummary);
+    html += '</tbody></table>';
+    return html;
+  }
+
+  function runAnalysis(){
+    if (selectedA.size === 0 && selectedB.size === 0){
+      document.getElementById('resultsBody').innerHTML = '<div id="emptyState">Select at least one test in Group A or Group B.</div>';
+      document.getElementById('resultsWrap').classList.add('show');
+      renderFlags();
+      renderDomainTable();
+      return;
+    }
+
+    var rowsA = rowsForGroup(selectedA);
+    var rowsB = rowsForGroup(selectedB);
+    var rowsCombined = rowsA.concat(rowsB);
+
+    var out = '';
+
+    if (rowsA.length){
+      out += '<div class="result-block">' +
+        '<div class="result-title"><span class="swatch a"></span>Group A — ' + labelForGroup(selectedA) + ' <span class="n-badge">n=' + rowsA.length + '</span></div>' +
+        buildStatTable(rowsA, 'Group A · all occurrences') +
+        '</div>';
+    }
+
+    if (rowsB.length){
+      out += '<div class="result-block">' +
+        '<div class="result-title"><span class="swatch b"></span>Group B — ' + labelForGroup(selectedB) + ' <span class="n-badge">n=' + rowsB.length + '</span></div>' +
+        buildStatTable(rowsB, 'Group B · all occurrences') +
+        '</div>';
+    }
+
+    if (rowsA.length && rowsB.length){
+      out += '<div class="result-block">' +
+        '<div class="result-title"><span class="swatch c"></span>Group A + Group B — combined pool <span class="n-badge">n=' + rowsCombined.length + '</span></div>' +
+        buildStatTable(rowsCombined, 'Both groups, pooled together') +
+        '</div>';
+
+      // requisitions with BOTH a group-A test and a group-B test
+      var reqA = {}, reqB = {};
+      rowsA.forEach(function(r){ (reqA[r.reqNum] = reqA[r.reqNum]||[]).push(r); });
+      rowsB.forEach(function(r){ (reqB[r.reqNum] = reqB[r.reqNum]||[]).push(r); });
+
+      var bothReqs = Object.keys(reqA).filter(function(k){ return reqB.hasOwnProperty(k); });
+
+      var aInBoth = [], bInBoth = [];
+      var bothResulted = [], bothVerified = [];
+
+      bothReqs.forEach(function(req){
+        var aRows = reqA[req], bRows = reqB[req];
+        aInBoth = aInBoth.concat(aRows);
+        bInBoth = bInBoth.concat(bRows);
+
+        var aMaxRes = Math.max.apply(null, aRows.map(function(r){ return r.resultingMin===null?-Infinity:r.resultingMin; }));
+        var bMaxRes = Math.max.apply(null, bRows.map(function(r){ return r.resultingMin===null?-Infinity:r.resultingMin; }));
+        var aMaxVer = Math.max.apply(null, aRows.map(function(r){ return r.verificationMin===null?-Infinity:r.verificationMin; }));
+        var bMaxVer = Math.max.apply(null, bRows.map(function(r){ return r.verificationMin===null?-Infinity:r.verificationMin; }));
+
+        if (isFinite(aMaxRes) && isFinite(bMaxRes)) bothResulted.push(Math.max(aMaxRes,bMaxRes));
+        if (isFinite(aMaxVer) && isFinite(bMaxVer)) bothVerified.push(Math.max(aMaxVer,bMaxVer));
+      });
+
+      out += '<div class="result-block">' +
+        '<div class="result-title">Requisitions with BOTH groups ordered together <span class="n-badge">n=' + bothReqs.length + ' requisitions</span></div>' +
+        '<div class="two-col">' +
+          '<div>' + buildStatTable(aInBoth, 'Group A, within shared requisitions') + '</div>' +
+          '<div>' + buildStatTable(bInBoth, 'Group B, within shared requisitions') + '</div>' +
+        '</div>' +
+        '<div style="margin-top:16px;">' +
+        '<table class="stat-table"><caption>Time until BOTH are done (max of the two, per requisition)</caption>' +
+        '<thead><tr><th>Metric</th><th>n</th><th>Median</th><th>P75</th><th>P90</th><th>Mean</th><th>Max</th></tr></thead><tbody>';
+
+      var sBothRes = summarize(bothResulted);
+      var sBothVer = summarize(bothVerified);
+      function rowBoth(label,s){
+        out += '<tr><td>'+label+'</td><td>'+(s.n||0)+'</td>' +
+          '<td>'+fmtMin(s.median)+' <span style="color:#9b9484">('+fmtHrs(s.median)+')</span></td>' +
+          '<td>'+fmtMin(s.p75)+' <span style="color:#9b9484">('+fmtHrs(s.p75)+')</span></td>' +
+          '<td>'+fmtMin(s.p90)+' <span style="color:#9b9484">('+fmtHrs(s.p90)+')</span></td>' +
+          '<td>'+fmtMin(s.mean)+' <span style="color:#9b9484">('+fmtHrs(s.mean)+')</span></td>' +
+          '<td>'+fmtHrs(s.max)+'</td></tr>';
+      }
+      rowBoth('Both resulted', sBothRes);
+      rowBoth('Both verified', sBothVer);
+      out += '</tbody></table></div></div>';
+    }
+
+    document.getElementById('resultsBody').innerHTML = out || '<div id="emptyState">No matching rows for the current selection.</div>';
+    document.getElementById('resultsWrap').classList.add('show');
+    renderFlags();
+    renderDomainTable();
+    window.scrollTo({top: document.getElementById('resultsWrap').offsetTop - 20, behavior:'smooth'});
+  }
+
+  function renderFlags(){
+    var f = state.flags || {errorCount:0,negCount:0,blankVerifCount:0,totalRows:0};
+    var list = document.getElementById('flagList');
+    list.innerHTML =
+      '<li><span>Total test rows parsed</span><span class="v ok">' + f.totalRows + '</span></li>' +
+      '<li><span>Rows with a formula/spill error (e.g. #SPILL!)</span><span class="v ' + (f.errorCount? '':'ok') + '">' + f.errorCount + '</span></li>' +
+      '<li><span>Rows with a negative time gap (clock sync issue)</span><span class="v ' + (f.negCount? '':'ok') + '">' + f.negCount + '</span></li>' +
+      '<li><span>Rows missing a verification timestamp</span><span class="v ' + (f.blankVerifCount? '':'ok') + '">' + f.blankVerifCount + '</span></li>';
+  }
+
+  function renderDomainTable(){
+    var domains = {};
+    state.rows.forEach(function(r){
+      if (!r.domain) return;
+      (domains[r.domain] = domains[r.domain] || []).push(r.resultingMin);
+    });
+    var domainNames = Object.keys(domains);
+    var rowsData = domainNames.map(function(d){
+      var s = summarize(domains[d]);
+      return {domain:d, s:s};
+    }).sort(function(a,b){ return (b.s.median||0) - (a.s.median||0); });
+
+    var html = '<thead><tr><th>Domain</th><th>n</th><th>Median</th><th>P75</th><th>P90</th><th>Mean</th><th>Max</th></tr></thead><tbody>';
+    rowsData.forEach(function(row){
+      var s = row.s;
+      html += '<tr><td>'+row.domain+'</td><td>'+(s.n||0)+'</td>' +
+        '<td>'+fmtHrs(s.median)+'</td><td>'+fmtHrs(s.p75)+'</td><td>'+fmtHrs(s.p90)+'</td>' +
+        '<td>'+fmtHrs(s.mean)+'</td><td>'+fmtHrs(s.max)+'</td></tr>';
+    });
+    html += '</tbody>';
+    document.getElementById('domainTable').innerHTML = html;
+    window._domainRowsData = rowsData;
+  }
+
+  document.getElementById('exportBtn').addEventListener('click', function(){
+    var rowsData = window._domainRowsData || [];
+    var lines = ['Domain,n,Median (min),P75 (min),P90 (min),Mean (min),Max (min)'];
+    rowsData.forEach(function(row){
+      var s = row.s;
+      lines.push([row.domain, s.n, Math.round(s.median||0), Math.round(s.p75||0), Math.round(s.p90||0), Math.round(s.mean||0), Math.round(s.max||0)].join(','));
+    });
+    var blob = new Blob([lines.join('\n')], {type:'text/csv'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'lab_tat_domain_summary.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+})();
+</script>
+</body>
+</html>
